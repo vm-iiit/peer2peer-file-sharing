@@ -1,5 +1,18 @@
 #include"header.h"
 
+string findname(char *path)
+{
+	string n = "";
+	for(int lv = strlen(path)-1; path[lv] != '/'; lv--)
+	{
+		string s(1, path[lv]);
+		n.append(s);
+	}
+	reverse(n.begin(), n.end());
+	return n;
+
+}
+
 int main(int argc, char *argv[])
 {
 	int client_sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -23,11 +36,20 @@ int main(int argc, char *argv[])
 	bool flag = true;
 
 	FILE *fp = fopen ( argv[1]  , "rb" );
-
+	string filename = findname(argv[1]);
+	
 	fseek(fp, 0, SEEK_END);
 	int size = ftell(fp);
 	rewind(fp);
+	char fn[BUFF_SIZE];
 
+	int lv;
+	for(lv=0; filename[lv] != '\0'; lv++)
+		fn[lv] = filename[lv];
+	fn[lv] = '\0';
+
+	cout<<"filename is "<<fn<<endl;
+	send(client_sock, fn, sizeof(fn), 0);
 	/*int ipf = open(argv[1], O_RDONLY);
 	if(ipf < 0)
 	{
@@ -41,6 +63,7 @@ int main(int argc, char *argv[])
 	ssize_t currbytes;*/
 	//send(client_sock, &fsize, sizeof(fsize), 0);
 	send(client_sock, &size, sizeof(size), 0);
+	cout<<"sent filesize "<<size<<endl;
 	ssize_t n;
 	while ((n=fread( Buffer , sizeof(char) , BUFF_SIZE, fp ) ) > 0  && size > 0 )
 	{
