@@ -15,13 +15,15 @@ string findname(char *path)
 
 int main(int argc, char *argv[])
 {
+	//1st cmdline argument - file to be downloaded
+	//2nd cmdline arg - path where to download
 	int client_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(client_sock == -1)
 	{
 		cout<<"cannot open client socket\n";
 		exit(0);
 	}
-	char Buffer[BUFF_SIZE];
+	char buffer[BUFF_SIZE];
 	
 	struct sockaddr_in track_addr;
 	track_addr.sin_family = AF_INET;
@@ -33,10 +35,21 @@ int main(int argc, char *argv[])
 		cout<<"cannot connect to tracker\n";
 		exit(0);
 	}
-	bool flag = true;
+	
+	strcpy(buffer, argv[1]);
+	cout<<"sending path "<<buffer<<" to server"<<endl;                                      
+	send(client_sock, buffer, sizeof(buffer), 0);
 
-	FILE *fp = fopen ( argv[1]  , "rb" );
+	int fsize;
+	recv(client_sock, &fsize, sizeof(fsize), 0);
+	cout<<"received "<<fsize<<" as size of file\n";
 	string filename = findname(argv[1]);
+	string downpath (argv[2]);
+	string comppath = downpath+filename;
+	cout<<filename<<" will be saved to "<<comppath<<endl;
+	FILE *fp = fopen ( comppath.c_str(), "wb" );
+	/*
+	
 	
 	fseek(fp, 0, SEEK_END);
 	int size = ftell(fp);
@@ -49,45 +62,28 @@ int main(int argc, char *argv[])
 	fn[lv] = '\0';
 
 	cout<<"filename is "<<fn<<endl;
-	send(client_sock, fn, sizeof(fn), 0);
-	/*int ipf = open(argv[1], O_RDONLY);
-	if(ipf < 0)
-	{
-		cout<<"cant open file\n";
-		exit(0);
-	}
-	ssize_t fsize = lseek(ipf, 0, SEEK_END);
-	cout<<"file size :"<<fsize<<endl;
-	lseek(ipf, 0, SEEK_SET);
-	ssize_t bytes_read=0;
-	ssize_t currbytes;*/
-	//send(client_sock, &fsize, sizeof(fsize), 0);
+	
 	send(client_sock, &size, sizeof(size), 0);
-	cout<<"sent filesize "<<size<<endl;
+	cout<<"sent filesize "<<size<<endl;*/
 	ssize_t n;
-	while ((n=fread( Buffer , sizeof(char) , BUFF_SIZE, fp ) ) > 0  && size > 0 )
+
+	while(( n = recv(client_sock, buffer, BUFF_SIZE, 0)) > 0  &&  fsize > 0)
+	{	
+		
+		fwrite (buffer , sizeof(char), n, fp);
+		memset ( buffer , '\0', BUFF_SIZE);
+		fsize = fsize - n;
+	} 
+	cout<<"received\n";
+	/*while ((n=fread( buffer , sizeof(char) , BUFF_SIZE, fp ) ) > 0  && size > 0 )
 	{
-			send (client_sock, Buffer, n, 0 );
-	   	 	memset ( Buffer , '\0', BUFF_SIZE);
+			send (client_sock, buffer, n, 0 );
+	   	 	memset ( buffer , '\0', BUFF_SIZE);
 			size = size - n ;
-	}
-
-	/*while(1)
-	{
-		currbytes = read(ipf, message, sizeof(message));
-		if(currbytes == 0)
-			break;
-		bytes_read += currbytes;
-
-
-		if(strcmp(message, "exit") == 0)
-			flag = false;
-		cout<<"sending chunk "<<endl;
-		send(client_sock, &message, sizeof(message), 0);
-		//succ = recv(client_sock, &message, 100, 0);
-		//cout<<"tracker :"<<message<<endl;
 	}*/
-	cout<<"sent file\n";
+
+	
+	//cout<<"sent file\n";
 	
 	close(client_sock);
 
