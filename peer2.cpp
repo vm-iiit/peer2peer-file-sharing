@@ -69,7 +69,7 @@ void *serve_files(void *P)
 
 	struct sockaddr_in sadd;
 	sadd.sin_family = AF_INET;
-	sadd.sin_port = htons(5245);
+	sadd.sin_port = htons(5246);
 	sadd.sin_addr.s_addr = INADDR_ANY;
 
 	int succ;
@@ -126,7 +126,7 @@ void *take_files(void *p)
 	char buffer[BUFF_SIZE];
 	struct sockaddr_in track_addr;
 	track_addr.sin_family = AF_INET;
-	track_addr.sin_port = htons(5246);
+	track_addr.sin_port = htons(5245);
 	inet_pton(AF_INET, "127.0.0.1", &track_addr.sin_addr);
 	int succ = connect(client_sock, (struct sockaddr *)&track_addr, sizeof(track_addr));
 	if(succ == -1)
