@@ -9,6 +9,8 @@
 #include<fstream>
 #include<pthread.h>
 #include<algorithm>
+#include<fstream>
 #define BUFF_SIZE 100
 #define THREAD_COUNT 20
+#define num_trackers 2
 using namespace std;
