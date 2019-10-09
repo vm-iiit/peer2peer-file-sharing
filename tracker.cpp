@@ -1,17 +1,48 @@
 #include"header.h"
 pair<string, int> tinfo[num_trackers+1];
+map<string, string> credentials;
 
 void *req_handler(void *arg)
 {
-	cout<<"request served\n";
-	pthread_exit(NULL);
+	int acc_fd = *(int *)arg;
+	int choice;
+	char buffer[BUFF_SIZE];
+	while(1)
+	{
+		cout<<"waiting for request number\n";
+		recv(acc_fd, &choice, sizeof(int), 0);
+		if(choice < 1 || choice > 9)
+			pthread_exit(NULL);
+		switch(choice)
+		{
+			case 1: bool success;
+				    recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    string usr(buffer);
+				    cout<<"got username "<<usr<<endl;
+				    recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    string pass(buffer);
+				    cout<<"got password "<<pass<<endl;
+				    if(credentials[usr] != "")
+				        success = false;
+				    else
+				    {
+				    	success = true;
+				    	credentials[usr] = pass;
+				    }
+				    send(acc_fd, &success, sizeof(bool), 0);
+
+		}
+		cout<<"request served\n";
+	}
+	
+	
 }
 
-void get_ip_port()
+void get_ip_port(char *filename)
 {
 	ifstream ipf;
 	int port;
-	ipf.open("config");
+	ipf.open(filename);
 	int lv=1;
 	string temp;
 	while(1)
@@ -30,6 +61,7 @@ void get_ip_port()
 
 int main(int argc, char *argv[])
 {
+	credentials.clear();
 	//int PORT = *(int *)P;
 	int tracker_sock = socket(AF_INET, SOCK_STREAM, 0);
 	if(tracker_sock == -1)
@@ -37,9 +69,9 @@ int main(int argc, char *argv[])
 		cout<<"cannot create socket\n";
 		exit(0);
 	}
-	get_ip_port();
-	string id(argv[1]);
-	cout<<"initializing tracker#"<<argv[1]<<" with ip "<<tinfo[stoi(id)].first<<" and port "<<tinfo[stoi(id)].second<<endl;
+	get_ip_port(argv[1]);
+	string id(argv[2]);
+	cout<<"initializing tracker#"<<argv[2]<<" with ip "<<tinfo[stoi(id)].first<<" and port "<<tinfo[stoi(id)].second<<endl;
 	
 	struct sockaddr_in sadd;
 	sadd.sin_family = AF_INET;
@@ -65,7 +97,7 @@ int main(int argc, char *argv[])
 	pthread_t threads[THREAD_COUNT];
 	int count = 0;
 
-	cout<<"tracker #"<<argv[1]<<" initiated\n";
+	cout<<"tracker #"<<argv[2]<<" initiated\n";
 	while(1)
 	{
 		cout<<"waiting for connection request\n";

@@ -10,6 +10,8 @@
 #include<pthread.h>
 #include<algorithm>
 #include<fstream>
+#include<stdlib.h>
+#include<map>
 #define BUFF_SIZE 100
 #define THREAD_COUNT 20
 #define num_trackers 2
