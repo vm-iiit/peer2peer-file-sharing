@@ -202,12 +202,50 @@ bool create_user(pair<string, string> p, int client_sock)
 	int one=1;
 	send(client_sock, &one, sizeof(int), 0);
 	bool b;
-	cout<<"sending username "<<p.first<<endl;
+	//cout<<"sending username "<<p.first<<endl;
 	send(client_sock, p.first.c_str(), BUFF_SIZE, 0);
-	cout<<"sending password "<<p.second<<endl;
+	//cout<<"sending password "<<p.second<<endl;
 	send(client_sock, p.second.c_str(), BUFF_SIZE, 0);
 	recv(client_sock, &b, sizeof(bool), 0);
 	return b;
+}
+
+bool log_in(pair<string, string> p, int client_sock)
+{
+	int two=2;
+	send(client_sock, &two, sizeof(int), 0);
+	bool b;
+	//cout<<"sending username "<<p.first<<endl;
+	send(client_sock, p.first.c_str(), BUFF_SIZE, 0);
+	//cout<<"sending password "<<p.second<<endl;
+	send(client_sock, p.second.c_str(), BUFF_SIZE, 0);
+	recv(client_sock, &b, sizeof(bool), 0);
+	return b;
+}
+
+bool log_out(int client_sock)
+{
+	int twelve=12;
+	send(client_sock, &twelve, sizeof(int), 0);
+	cout<<"sent 12\n";
+	bool b;
+	//cout<<"sending username "<<p.first<<endl;
+	//send(client_sock, p.first.c_str(), BUFF_SIZE, 0);
+	//cout<<"sending password "<<p.second<<endl;
+	//send(client_sock, p.second.c_str(), BUFF_SIZE, 0);
+	recv(client_sock, &b, sizeof(bool), 0);
+	cout<<"received bool\n";
+	return b;
+}
+
+int create_group(int client_sock)
+{
+	int three=3;
+	send(client_sock, &three, sizeof(int), 0);
+	int i;
+	recv(client_sock, &i, sizeof(int), 0);
+	cout<<"received and returning "<<i<<endl;
+	return i;
 }
 
 int main(int argc, char *argv[])
@@ -258,35 +296,50 @@ int main(int argc, char *argv[])
 
 	bool login_status = false;
 	bool group = false;
+	string luser="";
 	string username = "", password;
-	int group_id = -1;
-	int choice;
+	vector<int> group_ids ;
+	int choice, g;
+	pair<string, string> p;
 	while(1)
 	{
 		cout<<"----------------------------------------\n\n";
-		if(login_status)
+		if(!login_status)
 			cout<<"Not logged in\n";
 		else
-			cout<<"logged in as "<<username<<endl;
+			cout<<"logged in as "<<luser<<endl;
 
-		if(group == -1)
+		if(group_ids.size() == 0)
 			cout<<"Group not assigned\n\n";
 		else
-			cout<<"Group id :"<<group_id<<endl<<endl;
-		cout<<"1. create user/sign in\n";
-		cout<<"2. login\n";
-		cout<<"3. create group\n";
-		cout<<"4. join group\n";
-		cout<<"5. leave group\n";
-		cout<<"6. list pending join requests\n";
-		cout<<"7. accept group join requests\n";
-		cout<<"8. list all group in network\n";
-		cout<<"9. list all sharable files in group\n";
-		cout<<"10. upload file\n";
-		cout<<"11. download file\n";
-		cout<<"12. logout\n";
-		cout<<"13. show downloads\n";
-		cout<<"14. stop sharing\n\n";
+		{
+			cout<<"\nassociated group IDs :";
+			for(int lv=0; lv<group_ids.size(); lv++)
+				cout<<group_ids[lv]<<' ';
+			cout<<endl<<endl;
+		}
+		
+		if(login_status)
+		{
+			cout<<"3. Create group\n";
+			cout<<"4. Join group\n";
+			cout<<"5. Leave group\n";
+			cout<<"6. List pending join requests\n";
+			cout<<"7. Accept group join requests\n";
+			cout<<"8. List all group in network\n";
+			cout<<"9. List all sharable files in group\n";
+			cout<<"10. Upload file\n";
+			cout<<"11. Download file\n";
+			cout<<"12. Logout\n";
+			cout<<"13. Show downloads\n";
+			cout<<"14. Stop sharing\n\n";
+		}
+		
+		else
+		{
+			cout<<"1. Create user/sign in\n";
+			cout<<"2. Login\n";
+		}
 
 		cout<<"Enter choice :";
 		cin>>choice;
@@ -298,11 +351,59 @@ int main(int argc, char *argv[])
 					cout<<"\nEnter password :";
 					cin>>password;
 					cout<<endl;
-					auto p = make_pair(username, password);
+					p = make_pair(username, password);
 					if(create_user(p, client_sock))
 						cout<<"User "<<username<<" successfully created\n";
 					else
-						cout<<"Unbale to create user with this name\n";
+						cout<<"Unable to create user with this name/ username already exists\n";
+					break;
+
+			case 2: cout<<"\nEnter username :";
+					cin>>username;
+					cout<<"\nEnter password :";
+					cin>>password;
+					cout<<endl;
+					p = make_pair(username, password);
+					if(log_in(p, client_sock))
+					{
+						cout<<"login successful\n";
+						login_status = true;
+						luser = username;
+					}
+					else
+					{
+						cout<<"wrong password\n";
+					}
+					break;
+
+			case 3: g = create_group(client_sock);
+					if(g != -1)
+					{
+						cout<<"group successfully created\n";
+						group = true;
+						cout<<"got group id "<<g<<endl;
+						group_ids.push_back(g);
+					}
+					else
+						cout<<"cannot create group\n";
+					break;
+
+			case 4: cout<<"Enter id of group :";
+					//cin>>
+
+			case 12:cout<<"calling logout\n";
+					if(log_out(client_sock))
+					{
+						login_status = false;
+						luser = "";
+						cout<<"logged out successfully\n";
+						group_ids.clear();
+					}
+					else
+					{
+						cout<<"unable to log out\n";
+					}
+					break;
 
 		}
 

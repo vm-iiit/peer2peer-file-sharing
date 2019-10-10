@@ -1,27 +1,32 @@
 #include"header.h"
 pair<string, int> tinfo[num_trackers+1];
 map<string, string> credentials;
+map<string, bool> logged_in;
+map<string, list<int>> my_group;
+map<int,string> g_owner;
+int empty_group = 1;
+list<string> group_members[group_limit+1];
 
 void *req_handler(void *arg)
 {
 	int acc_fd = *(int *)arg;
 	int choice;
 	char buffer[BUFF_SIZE];
+	bool success;
+	string usr, pass;
 	while(1)
 	{
 		cout<<"waiting for request number\n";
 		recv(acc_fd, &choice, sizeof(int), 0);
-		if(choice < 1 || choice > 9)
-			pthread_exit(NULL);
+		
 		switch(choice)
 		{
-			case 1: bool success;
+			case 1: recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    usr.assign(buffer);
+				    //cout<<"got username "<<usr<<endl;
 				    recv(acc_fd, buffer, BUFF_SIZE, 0);
-				    string usr(buffer);
-				    cout<<"got username "<<usr<<endl;
-				    recv(acc_fd, buffer, BUFF_SIZE, 0);
-				    string pass(buffer);
-				    cout<<"got password "<<pass<<endl;
+				    pass.assign(buffer);
+				    //cout<<"got password "<<pass<<endl;
 				    if(credentials[usr] != "")
 				        success = false;
 				    else
@@ -30,11 +35,57 @@ void *req_handler(void *arg)
 				    	credentials[usr] = pass;
 				    }
 				    send(acc_fd, &success, sizeof(bool), 0);
+				    break;
 
+			case 2: recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    usr.assign(buffer);
+				    //cout<<"got username "<<usr<<endl;
+				    recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    pass.assign(buffer);
+				    //cout<<"got password "<<pass<<endl;
+				    if(credentials[usr] == pass)
+				    {
+				    	success = true;
+				    	logged_in[usr] = true;
+				    }
+				    else
+				    {
+				    	success = false;
+				    	//credentials[usr] = pass;
+				    }
+				    send(acc_fd, &success, sizeof(bool), 0);
+				    break;
+
+			case 3: cout<<"Group creation\n";
+					if(logged_in[usr])
+					{
+						my_group[usr].push_back(empty_group);
+						cout<<"sending "<<empty_group<<endl;
+						send(acc_fd, &empty_group, sizeof(int), 0);
+						++empty_group;
+					}
+					else
+					{
+						int minus_one = -1;
+						send(acc_fd, &(minus_one), sizeof(int), 0);
+					}
+					break;
+
+			case 12:if(logged_in[usr] == true)
+					{
+						logged_in[usr] = false;
+						success = true;
+					}
+					else
+						success = false;
+					cout<<"sending\n";
+					send(acc_fd, &success, sizeof(bool), 0);
+					cout<<"sent\n";
+					break;
 		}
 		cout<<"request served\n";
 	}
-	
+	pthread_exit(NULL);	
 	
 }
 
