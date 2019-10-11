@@ -332,13 +332,15 @@ int main(int argc, char *argv[])
 			cout<<"11. Download file\n";
 			cout<<"12. Logout\n";
 			cout<<"13. Show downloads\n";
-			cout<<"14. Stop sharing\n\n";
+			cout<<"14. Stop sharing\n";
+			cout<<"15. Exit\n\n";
 		}
 		
 		else
 		{
 			cout<<"1. Create user/sign in\n";
 			cout<<"2. Login\n";
+			cout<<"15. Exit\n";
 		}
 
 		cout<<"Enter choice :";
@@ -404,6 +406,11 @@ int main(int argc, char *argv[])
 						cout<<"unable to log out\n";
 					}
 					break;
+
+			case 15:int fifteen = 15;
+					send(client_sock, &fifteen, sizeof(int), 0);
+					close(client_sock);
+					exit(0);
 
 		}
 
