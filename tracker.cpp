@@ -3,16 +3,23 @@
 pair<string, int> tinfo[num_trackers+1];
 map<string, string> credentials;
 map<string, bool> logged_in;
-map<string, list<int>> my_group;
+map<string, bool>::iterator mi_log;
+map<string, vector<int>> ownership;
+map<string, vector<int>>::iterator mi_ownership;
+map<string, vector<int>> membership;
+map<string, vector<int>>::iterator mi_membership;
 map<int,string> g_owner;
-int empty_group = 1;
+map<int, vector<string>> g_members;
+int empty_group ;
 list<string> group_members[group_limit+1];
+map<int, vector<string>> requests;
 
 void load_credentials()
 {
 	ifstream cred_file;
 	ofstream temp;
 	string u, p;
+	credentials.clear();
 	cred_file.open("credentials.txt");
 	if(!cred_file)
 	{
@@ -37,6 +44,142 @@ void load_credentials()
 	//cout<<"credentials map loaded\n";
 }
 
+void load_login()
+{
+	ifstream login_file;
+	ofstream temp;
+	string u;
+	bool b;
+	logged_in.clear();
+	login_file.open("login_status.txt");
+	if(!login_file)
+	{
+		cout<<"creating login status file\n";
+		temp.open("login_status.txt");
+		login_file.open("credentials.txt");
+
+	}
+		while(1)
+		{
+			login_file>>u;
+			if(login_file.tellg() == -1)
+				break;
+			else
+			{
+				login_file>>b;
+				logged_in[u] = b;
+			}
+		}
+		login_file.close();
+}
+
+void update_login()
+{
+	ofstream login_file;
+	string u;
+	bool b;
+	login_file.open("login_status.txt", ios::trunc);
+	for(mi_log = logged_in.begin(); mi_log != logged_in.end(); mi_log++)
+	{
+		login_file<<mi_log->first<<' '<<mi_log->second<<endl;
+	}
+	login_file.close();
+}
+
+void update_ownerships()
+{
+	ofstream f_memb;
+	f_memb.open("ownership.txt", ios::trunc);
+	for(mi_ownership = ownership.begin(); mi_ownership != ownership.end(); mi_ownership++)
+	{
+		f_memb<<mi_ownership->first<<' ';
+		for(int lv = 0; lv<ownership[mi_ownership->first].size(); lv++)
+			f_memb<<ownership[mi_ownership->first][lv]<<' ';
+		f_memb<<endl;
+	}
+	f_memb.close();
+	cout<<"update done\n";
+}
+
+void read_ownership()
+{
+	ifstream member_f;
+	string str, entry;
+	char *temp, *U;
+	char *extra;
+	member_f.open("ownership.txt");
+	ownership.clear();
+	g_owner.clear();
+	int i;
+	while(getline(member_f, str, '\n'))
+	{
+		extra = &str[0];
+		U = strtok(extra, " ");
+		entry.assign(U);
+		while(U)
+		{
+			U = strtok(NULL, " ");
+			if(U)
+			{
+				i = atoi(U);
+				ownership[entry].push_back(i);
+				g_owner[i] = entry;
+			}
+		}
+	}
+	member_f.close();
+	//cout<<"read done\n";
+}
+
+void load_join_requests()
+{
+	requests.clear();
+	ifstream irq;
+	irq.open("join_requests.txt");
+	if(!irq.good())
+	{
+		ofstream tmp;
+		tmp.open("join_requests.txt");
+		tmp.close();
+		irq.open("join_requests.txt");
+	}
+	string line;
+	char *s;
+	char *extra;
+	string t;
+	while(getline(irq, line, '\n'))
+	{
+		extra = &line[0];
+		s = strtok(extra, " ");
+		int var = atoi(s);
+		while(s)
+		{
+			s = strtok(NULL, " ");
+			if(s)
+			{
+				t.assign(s);
+				requests[var].push_back(s);
+			}
+		}
+	}
+	irq.close();
+}
+
+void update_join_requests()
+{
+	ofstream orq;
+	orq.open("join_requests.txt", ios::trunc);
+	for(auto it = requests.begin(); it != requests.end(); it++)
+	{
+		orq<<it->first<<' ';
+		for(int lv=0; lv < requests[it->first].size(); lv++)
+			orq<<requests[it->first][lv]<<' ';
+		orq<<endl;
+	}
+	orq.close();
+}
+
+
 void *req_handler(void *arg)
 {
 	int acc_fd = *(int *)arg;
@@ -46,7 +189,7 @@ void *req_handler(void *arg)
 	string usr, pass;
 	while(1)
 	{
-		cout<<"\n\nwaiting for request\n";
+		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
 		recv(acc_fd, &choice, sizeof(int), 0);
 		
 		switch(choice)
@@ -73,15 +216,22 @@ void *req_handler(void *arg)
 				    	{
 				    		cred_file.seekp(ios_base::end);
 				    		cred_file<<usr<<' '<<pass<<"\n";
-				    		cout<<"wrote creds in file\n";
+				    		//cout<<"wrote creds in file\n";
 				    		cred_file.close();	
 				    	}
-				    	
+
+				    	ofstream login_file;
+				    	login_file.open("login_status.txt", ios::app);
+				    	login_file.seekp(ios_base::end);
+				    	login_file<<usr<<' '<<0<<"\n";
+				    	login_file.close();	
 				    }
 				    send(acc_fd, &success, sizeof(bool), 0);
+				    update_ownerships();
 				    break;
 
 			case 2: load_credentials();
+					load_login();
 					cout<<"login request\n";
 					recv(acc_fd, buffer, BUFF_SIZE, 0);
 				    usr.assign(buffer);
@@ -92,7 +242,9 @@ void *req_handler(void *arg)
 				    if(credentials[usr] == pass)
 				    {
 				    	success = true;
+				    	load_login();
 				    	logged_in[usr] = true;
+				    	update_login();
 				    }
 				    else
 				    {
@@ -103,23 +255,75 @@ void *req_handler(void *arg)
 				    break;
 
 			case 3: cout<<"Group creation request\n";
+					load_login();
 					if(logged_in[usr])
-					{
-						my_group[usr].push_back(empty_group);
-						cout<<"sending "<<empty_group<<"\n";
-						send(acc_fd, &empty_group, sizeof(int), 0);
-						++empty_group;
+					{	
+						read_ownership();
+						int empty_group;
+						recv(acc_fd, &empty_group, sizeof(empty_group), 0);
+						if(g_owner[empty_group] == "")
+						{
+							ownership[usr].push_back(empty_group);
+							update_ownerships();
+							cout<<"sending "<<empty_group<<"\n";
+							send(acc_fd, &empty_group, sizeof(int), 0);
+							
+							ofstream own_ind;
+							own_ind.open("owners_indexed.txt", ios::app);
+							own_ind<<empty_group<<' '<<usr<<endl;
+							own_ind.close();
+							g_owner[empty_group] = usr;
+
+						}
+						else
+						{
+							bool b= false;
+							send(acc_fd, &(b), sizeof(bool), 0);		
+						}					
 					}
 					else
 					{
-						int minus_one = -1;
-						send(acc_fd, &(minus_one), sizeof(int), 0);
+						bool b= false;
+						send(acc_fd, &(b), sizeof(bool), 0);
 					}
 					break;
 
-			case 12:if(logged_in[usr] == true)
+			case 4: read_ownership();
+					cout<<"Group join request\n";
+					if(logged_in[usr])
+					{
+						int gid;
+						recv(acc_fd, &gid, sizeof(int), 0);
+						if(g_owner[gid] == "")
+						{
+							success = false;
+							cout<<"failure, group doesn't exist\n";
+							send(acc_fd, &success, sizeof(bool), 0);
+						}
+						else
+						{
+							load_join_requests();
+							requests[gid].push_back(usr);
+							//cout<<"updating join_requests file\n";
+							update_join_requests();
+							success = true;
+							send(acc_fd, &success, sizeof(bool), 0);
+						}
+					}
+					else
+					{
+						int gid;
+						recv(acc_fd, &gid, sizeof(int), 0);
+						success = false;
+						send(acc_fd, &success, sizeof(bool), 0);
+					}
+					break;
+
+			case 12:load_login();
+					if(logged_in[usr] == true)
 					{
 						logged_in[usr] = false;
+						update_login();
 						success = true;
 					}
 					else
@@ -130,9 +334,12 @@ void *req_handler(void *arg)
 					break;
 
 			case 15:close(acc_fd);
+					cout<<"peer closed connection\n";
+					load_login();
+					logged_in[usr] = false;
+					update_login();
 					pthread_exit(NULL);
 		}
-		cout<<"request served\n\n";
 	}
 	
 }

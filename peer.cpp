@@ -238,14 +238,18 @@ bool log_out(int client_sock)
 	return b;
 }
 
-int create_group(int client_sock)
+bool create_group(int client_sock)
 {
 	int three=3;
 	send(client_sock, &three, sizeof(int), 0);
+	cout<<"Enter group id :";
 	int i;
-	recv(client_sock, &i, sizeof(int), 0);
-	cout<<"received and returning "<<i<<endl;
-	return i;
+	cin>>i;
+	send(client_sock, &i, sizeof(int), 0);
+	bool b;
+	recv(client_sock, &b, sizeof(bool), 0);
+	//cout<<"received and returning "<<i<<endl;
+	return b;
 }
 
 int main(int argc, char *argv[])
@@ -301,6 +305,8 @@ int main(int argc, char *argv[])
 	vector<int> group_ids ;
 	int choice, g;
 	pair<string, string> p;
+	int fifteen = 15;
+	int four = 4;
 	while(1)
 	{
 		cout<<"----------------------------------------\n\n";
@@ -309,7 +315,7 @@ int main(int argc, char *argv[])
 		else
 			cout<<"logged in as "<<luser<<endl;
 
-		if(group_ids.size() == 0)
+		/*if(group_ids.size() == 0)
 			cout<<"Group not assigned\n\n";
 		else
 		{
@@ -317,7 +323,7 @@ int main(int argc, char *argv[])
 			for(int lv=0; lv<group_ids.size(); lv++)
 				cout<<group_ids[lv]<<' ';
 			cout<<endl<<endl;
-		}
+		}*/
 		
 		if(login_status)
 		{
@@ -346,6 +352,18 @@ int main(int argc, char *argv[])
 		cout<<"Enter choice :";
 		cin>>choice;
 		cout<<endl;
+
+		if(login_status && (choice <3 || choice >15))
+		{
+			cout<<"incorrect choice !!! try again\n";
+			continue;
+		}
+		else if(!login_status && choice != 1 && choice != 2 && choice != 15)
+		{
+			
+			cout<<"incorrect choice !!! try again\n";
+			continue;
+		}
 		switch(choice)
 		{
 			case 1: cout<<"Enter username :";
@@ -379,19 +397,28 @@ int main(int argc, char *argv[])
 					break;
 
 			case 3: g = create_group(client_sock);
-					if(g != -1)
+					if(g)
 					{
 						cout<<"group successfully created\n";
 						group = true;
-						cout<<"got group id "<<g<<endl;
-						group_ids.push_back(g);
+						//cout<<"got group id "<<g<<endl;
+						//group_ids.push_back(g);
 					}
 					else
 						cout<<"cannot create group\n";
 					break;
 
-			case 4: cout<<"Enter id of group :";
-					//cin>>
+			case 4: send(client_sock, &four, sizeof(int), 0);
+					cout<<"Enter id of group to be joined :";
+					cin>>g;
+					send(client_sock, &g, sizeof(int), 0);
+					bool s;
+					recv(client_sock, &s, sizeof(bool), 0);
+					if(s == true)
+						cout<<"\nGroup join request sent to owner\n";
+					else
+						cout<<"\nCould not process request/ User logged out\n";
+					break;
 
 			case 12:cout<<"calling logout\n";
 					if(log_out(client_sock))
@@ -399,7 +426,7 @@ int main(int argc, char *argv[])
 						login_status = false;
 						luser = "";
 						cout<<"logged out successfully\n";
-						group_ids.clear();
+						//group_ids.clear();
 					}
 					else
 					{
@@ -407,10 +434,10 @@ int main(int argc, char *argv[])
 					}
 					break;
 
-			case 15:int fifteen = 15;
-					send(client_sock, &fifteen, sizeof(int), 0);
+			case 15:send(client_sock, &fifteen, sizeof(int), 0);
 					close(client_sock);
 					exit(0);
+					break;
 
 		}
 
