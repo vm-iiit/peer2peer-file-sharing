@@ -297,16 +297,18 @@ int main(int argc, char *argv[])
 	}
 	pthread_t client_threads[THREAD_COUNT];
 	int count = 0;
-
+	char *temps;
 	bool login_status = false;
 	bool group = false;
-	string luser="";
+	string luser="", stemp;
 	string username = "", password;
 	vector<int> group_ids ;
 	int choice, g;
 	pair<string, string> p;
 	int fifteen = 15;
 	int four = 4;
+	int seven=7;
+	bool s;
 	while(1)
 	{
 		cout<<"----------------------------------------\n\n";
@@ -412,12 +414,28 @@ int main(int argc, char *argv[])
 					cout<<"Enter id of group to be joined :";
 					cin>>g;
 					send(client_sock, &g, sizeof(int), 0);
-					bool s;
 					recv(client_sock, &s, sizeof(bool), 0);
 					if(s == true)
 						cout<<"\nGroup join request sent to owner\n";
 					else
 						cout<<"\nCould not process request/ User logged out\n";
+					break;
+
+			case 7: send(client_sock, &seven, sizeof(int), 0);
+					cout<<"Enter group id and user id to be joined :";
+					int g;
+					cin>>g>>stemp;
+					cout<<endl;
+					temps = (char *)malloc(sizeof(char)*100);
+					strcpy(temps, stemp.c_str());
+					send(client_sock, &g, sizeof(int), 0);
+					send(client_sock, temps, 100, 0);
+					recv(client_sock, &s, sizeof(bool), 0);
+					delete temps;
+					if(s == true)
+						cout<<"\nGroup join request accepted\n";
+					else
+						cout<<"\nCould not process request/ User logged out/Join req doesn't exist\n";
 					break;
 
 			case 12:cout<<"calling logout\n";

@@ -13,6 +13,8 @@ map<int, vector<string>> g_members;
 int empty_group ;
 list<string> group_members[group_limit+1];
 map<int, vector<string>> requests;
+map<int, vector<string>>::iterator ri;
+vector<string>::iterator vsi;
 
 void load_credentials()
 {
@@ -86,6 +88,58 @@ void update_login()
 	login_file.close();
 }
 
+void update_membership()
+{
+	ofstream f_memb;
+	f_memb.open("membership.txt", ios::trunc);
+	for(mi_membership = membership.begin(); mi_membership != membership.end(); mi_membership++)
+	{
+		f_memb<<mi_membership->first<<' ';
+		for(int lv = 0; lv<membership[mi_membership->first].size(); lv++)
+			f_memb<<membership[mi_membership->first][lv]<<' ';
+		f_memb<<endl;
+	}
+	f_memb.close();
+	//cout<<"update done\n";
+}
+
+void read_memberships()
+{
+	ifstream member_f;
+	string str, entry;
+	char *temp, *U;
+	char *extra;
+	member_f.open("membership.txt");
+	if(!member_f.good())
+	{
+		ofstream t;
+		t.open("membership.txt");
+		t.close();
+		member_f.open("membership.txt");
+	}
+	membership.clear();
+	g_members.clear();
+	int i;
+	while(getline(member_f, str, '\n'))
+	{
+		extra = &str[0];
+		U = strtok(extra, " ");
+		entry.assign(U);
+		while(U)
+		{
+			U = strtok(NULL, " ");
+			if(U)
+			{
+				i = atoi(U);
+				membership[entry].push_back(i);
+				g_members[i].push_back(entry);
+			}
+		}
+	}
+	member_f.close();
+	//cout<<"read done\n";
+}
+
 void update_ownerships()
 {
 	ofstream f_memb;
@@ -98,7 +152,7 @@ void update_ownerships()
 		f_memb<<endl;
 	}
 	f_memb.close();
-	cout<<"update done\n";
+	//cout<<"update done\n";
 }
 
 void read_ownership()
@@ -186,7 +240,9 @@ void *req_handler(void *arg)
 	int choice;
 	char buffer[BUFF_SIZE];
 	bool success;
-	string usr, pass;
+	string usr, pass, jt;
+	int g;
+	string ruser;
 	while(1)
 	{
 		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
@@ -290,6 +346,7 @@ void *req_handler(void *arg)
 
 			case 4: read_ownership();
 					cout<<"Group join request\n";
+					load_login();
 					if(logged_in[usr])
 					{
 						int gid;
@@ -308,6 +365,7 @@ void *req_handler(void *arg)
 							update_join_requests();
 							success = true;
 							send(acc_fd, &success, sizeof(bool), 0);
+							cout<<"sent group join request\n";
 						}
 					}
 					else
@@ -317,6 +375,39 @@ void *req_handler(void *arg)
 						success = false;
 						send(acc_fd, &success, sizeof(bool), 0);
 					}
+					break;
+
+			case 7: recv(acc_fd, &g, sizeof(int), 0);
+					char tt[100];
+					recv(acc_fd, &tt, 100, 0);
+					load_join_requests();
+					jt.assign(tt);
+					vsi = find(requests[g].begin(), requests[g].end(), jt);
+					load_login();
+					read_ownership();
+					if(vsi == requests[g].end() || g_owner[g] != usr || logged_in[usr] == false)
+					{
+						if(vsi == requests[g].end())
+							cout<<"not found in vector\n";
+						if(g_owner[g] != usr)
+							cout<<"current user is not the owner\n";
+						if(logged_in[usr] == false)
+							cout<<"user not logged in\n";
+						success = false;
+					}
+					else
+					{
+						load_join_requests();
+						requests[g].erase(vsi);
+						update_join_requests();
+						read_memberships();
+						membership[jt].push_back(g);
+						g_members[g].push_back(jt);
+						update_membership();
+						success = true;
+						cout<<"join request accepted\n";
+					}
+					send(acc_fd, &success, sizeof(bool), 0);
 					break;
 
 			case 12:load_login();
