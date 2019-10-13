@@ -297,6 +297,7 @@ int main(int argc, char *argv[])
 	}
 	pthread_t client_threads[THREAD_COUNT];
 	int count = 0;
+	int rq;
 	char *temps;
 	bool login_status = false;
 	bool group = false;
@@ -306,8 +307,8 @@ int main(int argc, char *argv[])
 	int choice, g;
 	pair<string, string> p;
 	int fifteen = 15;
-	int four = 4;
-	int seven=7;
+	int four = 4, five=5;
+	int seven=7, six = 6, eight = 8;
 	bool s;
 	while(1)
 	{
@@ -394,7 +395,7 @@ int main(int argc, char *argv[])
 					}
 					else
 					{
-						cout<<"wrong password\n";
+						cout<<"wrong password / YOu are already logged in \n";
 					}
 					break;
 
@@ -421,9 +422,35 @@ int main(int argc, char *argv[])
 						cout<<"\nCould not process request/ User logged out\n";
 					break;
 
+			case 5: send(client_sock, &five, sizeof(int), 0);
+					cout<<"Enter id of group to be left :";
+					cin>>g;
+					send(client_sock, &g, sizeof(int), 0);
+					recv(client_sock, &s, sizeof(bool), 0);
+					if(s)
+						cout<<"Left group "<<g<<" successfully\n";
+					else
+						cout<<"cannot leave group\n";
+					break;
+
+			case 6: send(client_sock, &six, sizeof(int), 0);
+					cout<<"Enter group id\n";
+					cin>>g;
+					send(client_sock, &g, sizeof(int), 0);
+					recv(client_sock, &rq, sizeof(int), 0);
+					cout<<"There are "<<rq<<" pending requests :";
+					temps = (char *)malloc(sizeof(char)*100);
+					while(rq--)
+					{
+						recv(client_sock, temps, 100, 0);
+						cout<<temps<<' ';
+					}
+					delete temps;
+					cout<<endl;
+					break;
+
 			case 7: send(client_sock, &seven, sizeof(int), 0);
 					cout<<"Enter group id and user id to be joined :";
-					int g;
 					cin>>g>>stemp;
 					cout<<endl;
 					temps = (char *)malloc(sizeof(char)*100);
@@ -436,6 +463,17 @@ int main(int argc, char *argv[])
 						cout<<"\nGroup join request accepted\n";
 					else
 						cout<<"\nCould not process request/ User logged out/Join req doesn't exist\n";
+					break;
+
+			case 8: send(client_sock, &eight, sizeof(int), 0);
+					recv(client_sock, &g, sizeof(int), 0);
+					cout<<"There are currently "<<g<<" groups in the network :";
+					while(g--)
+					{
+						recv(client_sock, &rq, sizeof(int), 0);
+						cout<<rq<<' ';
+					}
+					cout<<endl;
 					break;
 
 			case 12:cout<<"calling logout\n";

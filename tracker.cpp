@@ -8,7 +8,8 @@ map<string, vector<int>> ownership;
 map<string, vector<int>>::iterator mi_ownership;
 map<string, vector<int>> membership;
 map<string, vector<int>>::iterator mi_membership;
-map<int,string> g_owner;
+map<int, string> g_owner;
+map<int, string>::iterator g_o_it;
 map<int, vector<string>> g_members;
 int empty_group ;
 list<string> group_members[group_limit+1];
@@ -59,7 +60,7 @@ void load_login()
 		cout<<"creating login status file\n";
 		temp.open("login_status.txt");
 		login_file.open("credentials.txt");
-
+		temp.close();
 	}
 		while(1)
 		{
@@ -241,7 +242,8 @@ void *req_handler(void *arg)
 	char buffer[BUFF_SIZE];
 	bool success;
 	string usr, pass, jt;
-	int g;
+	int g, g_id;
+	int spare;
 	string ruser;
 	while(1)
 	{
@@ -295,7 +297,7 @@ void *req_handler(void *arg)
 				    recv(acc_fd, buffer, BUFF_SIZE, 0);
 				    pass.assign(buffer);
 				    //cout<<"got password "<<pass<<endl;
-				    if(credentials[usr] == pass)
+				    if(credentials[usr] == pass && logged_in[usr] == false)
 				    {
 				    	success = true;
 				    	load_login();
@@ -355,7 +357,7 @@ void *req_handler(void *arg)
 						{
 							success = false;
 							cout<<"failure, group doesn't exist\n";
-							send(acc_fd, &success, sizeof(bool), 0);
+							
 						}
 						else
 						{
@@ -364,18 +366,41 @@ void *req_handler(void *arg)
 							//cout<<"updating join_requests file\n";
 							update_join_requests();
 							success = true;
-							send(acc_fd, &success, sizeof(bool), 0);
 							cout<<"sent group join request\n";
 						}
 					}
 					else
 					{
+						cout<<"user not logged in\n";
 						int gid;
 						recv(acc_fd, &gid, sizeof(int), 0);
 						success = false;
-						send(acc_fd, &success, sizeof(bool), 0);
 					}
+					send(acc_fd, &success, sizeof(bool), 0);
 					break;
+
+			case 5: recv(acc_fd, &g_id, sizeof(int), 0);
+					read_memberships();
+					vsi = find(g_members[g_id].begin(), g_members[g_id].end(), usr);
+					if(vsi == g_members[g_id].end())
+						success = false;
+					else
+					{
+						g_members[g_id].erase(vsi);
+						membership[usr].erase(find(membership[usr].begin(), membership[usr].end(), g_id));
+						update_membership();
+						success = true; 
+					}
+					send(acc_fd, &success, sizeof(bool), 0);
+					break;
+
+			case 6: load_join_requests();
+					recv(acc_fd, &g_id, sizeof(int), 0);
+					spare = requests[g_id].size();
+					send(acc_fd, &spare, sizeof(int), 0);
+					for(int lv =0; lv <spare;lv++)
+						send(acc_fd, requests[g_id][lv].c_str(), 100, 0);
+					break;	
 
 			case 7: recv(acc_fd, &g, sizeof(int), 0);
 					char tt[100];
@@ -407,7 +432,17 @@ void *req_handler(void *arg)
 						success = true;
 						cout<<"join request accepted\n";
 					}
+					cout<<"sending "<<success<<" to client\n";
 					send(acc_fd, &success, sizeof(bool), 0);
+					break;
+
+			case 8: spare = g_owner.size();
+					send(acc_fd, &spare, sizeof(int), 0);
+					for(g_o_it = g_owner.begin(); g_o_it != g_owner.end(); g_o_it++)
+					{
+						spare = g_o_it->first;
+						send(acc_fd, &spare, sizeof(int), 0);
+					}
 					break;
 
 			case 12:load_login();
