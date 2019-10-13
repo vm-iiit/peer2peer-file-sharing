@@ -11,11 +11,110 @@ map<string, vector<int>>::iterator mi_membership;
 map<int, string> g_owner;
 map<int, string>::iterator g_o_it;
 map<int, vector<string>> g_members;
+
+map<string, pair<string, int>> port_num;
+map<string, pair<string, int>>::iterator si_it;
+
+struct f_info{
+	string u;
+	int g;
+	string fname;
+	string hash;
+	string path;
+};
+
+f_info obj;
+
+vector<f_info> up_vec;
+
 int empty_group ;
 list<string> group_members[group_limit+1];
 map<int, vector<string>> requests;
 map<int, vector<string>>::iterator ri;
 vector<string>::iterator vsi;
+
+void read_upload()
+{
+	up_vec.clear();
+	ifstream upf;
+	upf.open("uploads.txt");
+	if(!upf.good())
+	{
+		ofstream temp;
+		temp.open("uploads.txt");
+		temp.close();
+		upf.open("uploads.txt");
+	}
+
+	string a, c, d, e;
+	int b;
+	while(1)
+	{
+		upf>>a;
+		if(upf.tellg() == -1)
+			break;
+		upf>>b>>c>>d>>e;
+		obj.u = a;
+		obj.g = b;
+		obj.fname = c;
+		obj.hash = d;
+		obj.path = e;
+		up_vec.push_back(obj);
+	}
+	upf.close();
+}
+
+void update_upload()
+{
+	ofstream upf;
+	upf.open("uploads.txt", ios::trunc);
+	for(int lv = 0; lv<up_vec.size(); lv++)
+	{
+		upf<<up_vec[lv].u<<' '<<up_vec[lv].g<<' '<<up_vec[lv].fname<<' '<<up_vec[lv].hash<<' '<<up_vec[lv].path<<endl;
+	}
+	upf.close();
+}
+
+void read_port()
+{
+	ifstream pfile;
+	pfile.open("ports.txt");
+	if(!pfile.good())
+	{
+		ofstream temp;
+		temp.open("ports.txt");
+		temp.close();
+		pfile.open("ports.txt");
+	}
+	string u, ip;
+	int p;
+	port_num.clear();
+	while(1)
+	{
+		pfile>>u;
+		if(pfile.tellg() == -1)
+			break;
+		else
+		{
+			pfile>>ip>>p;
+			port_num[u] = make_pair(ip,p);
+		}
+	}
+	pfile.close();
+
+}
+
+void update_port()
+{
+	ofstream pfile;
+	pfile.open("ports.txt", ios::trunc);
+	for(si_it = port_num.begin(); si_it != port_num.end(); si_it++)
+	{
+		pfile<<si_it->first<<' '<<si_it->second.first<<' '<<si_it->second.second<<endl;
+	}
+	pfile.close();
+}
+
 
 void load_credentials()
 {
@@ -241,10 +340,11 @@ void *req_handler(void *arg)
 	int choice;
 	char buffer[BUFF_SIZE];
 	bool success;
-	string usr, pass, jt;
+	string usr, pass, jt, hash;
 	int g, g_id;
 	int spare;
-	string ruser;
+	pair<string, string> lpair;
+	string ruser, rpath;
 	while(1)
 	{
 		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
@@ -283,6 +383,7 @@ void *req_handler(void *arg)
 				    	login_file.seekp(ios_base::end);
 				    	login_file<<usr<<' '<<0<<"\n";
 				    	login_file.close();	
+
 				    }
 				    send(acc_fd, &success, sizeof(bool), 0);
 				    update_ownerships();
@@ -310,6 +411,15 @@ void *req_handler(void *arg)
 				    	//credentials[usr] = pass;
 				    }
 				    send(acc_fd, &success, sizeof(bool), 0);
+				    if(success)
+				    {
+				    	recv(acc_fd, buffer, BUFF_SIZE, 0);
+				    	recv(acc_fd, &spare, sizeof(int), 0);
+				    	read_port();
+				    	jt.assign(buffer);
+				    	port_num[usr] = make_pair(jt, spare);
+				    	update_port();
+				    }
 				    break;
 
 			case 3: cout<<"Group creation request\n";
@@ -445,12 +555,45 @@ void *req_handler(void *arg)
 					}
 					break;
 
+			case 10:recv(acc_fd, buffer, BUFF_SIZE, 0);
+					rpath.assign(buffer);
+					lpair = break_path(rpath);
+					recv(acc_fd, &g, sizeof(int), 0);
+					recv(acc_fd, buffer, BUFF_SIZE, 0);
+					hash.assign(buffer);
+
+					read_memberships();
+					vsi = find(g_members[g].begin(), g_members[g].end(), usr);
+					if(vsi != g_members[g].end() || g_owner[g] == usr)
+					{
+						success = true;
+						read_upload();
+						obj.u = usr;
+						obj.g = g;
+						obj.fname = lpair.second;
+						obj.hash = hash;
+						obj.path = lpair.first;
+						up_vec.push_back(obj);
+						update_upload();
+					}
+					else
+					{
+						success = false;
+					}
+					send(acc_fd, &success, sizeof(bool), 0);
+					break;
+
+
 			case 12:load_login();
 					if(logged_in[usr] == true)
 					{
 						logged_in[usr] = false;
 						update_login();
 						success = true;
+						
+						read_port();
+						port_num[usr] = make_pair("NA", -1);
+						update_port();
 					}
 					else
 						success = false;
@@ -464,6 +607,10 @@ void *req_handler(void *arg)
 					load_login();
 					logged_in[usr] = false;
 					update_login();
+					
+					read_port();
+					port_num[usr] = make_pair("NA", -1);
+					update_port();
 					pthread_exit(NULL);
 		}
 	}

@@ -287,6 +287,7 @@ int main(int argc, char *argv[])
 	strcpy(temparray, serv_port.c_str());*/
 	//cout<<"obtained "<<serv_port<<" as string port\n";
 	port_num = stoi(serv_port);
+
 	//cout<<"sending "<<port_num<<" to server thread\n";
 	cout<<"launching peer's server at port# "<<port_num<<endl;
 	succ = pthread_create(&server_thread, NULL, serve_files, &port_num);
@@ -308,7 +309,7 @@ int main(int argc, char *argv[])
 	pair<string, string> p;
 	int fifteen = 15;
 	int four = 4, five=5;
-	int seven=7, six = 6, eight = 8;
+	int seven=7, six = 6, eight = 8, ten = 10;
 	bool s;
 	while(1)
 	{
@@ -392,6 +393,10 @@ int main(int argc, char *argv[])
 						cout<<"login successful\n";
 						login_status = true;
 						luser = username;
+						strcpy(buffer, ip_addr.c_str());
+						send(client_sock, buffer, BUFF_SIZE, 0);
+						send(client_sock, &port_num, sizeof(int), 0);
+						cout<<"sent ip address and port number of server part\n";
 					}
 					else
 					{
@@ -474,6 +479,25 @@ int main(int argc, char *argv[])
 						cout<<rq<<' ';
 					}
 					cout<<endl;
+					break;
+
+			case 10:send(client_sock, &ten, sizeof(int), 0);
+					cout<<"Enter file with complete path to be uploaded :";
+					cin.ignore();
+					cin.getline(buffer, BUFF_SIZE);
+					cout<<"\nEnter group id :";
+					cin>>g;
+					send(client_sock, buffer, BUFF_SIZE, 0);
+					send(client_sock, &g, sizeof(int), 0);
+					cout<<"opening file "<<buffer<<endl;
+					stemp = calc_sha(buffer);
+					strcpy(buffer, stemp.c_str());
+					send(client_sock, buffer, BUFF_SIZE, 0);
+					recv(client_sock, &s, sizeof(bool), 0);
+					if(s)
+						cout<<"file successfully uploaded\n";
+					else
+						cout<<"could not upload the file\n";
 					break;
 
 			case 12:cout<<"calling logout\n";
