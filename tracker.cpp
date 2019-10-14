@@ -15,17 +15,11 @@ map<int, vector<string>> g_members;
 map<string, pair<string, int>> port_num;
 map<string, pair<string, int>>::iterator si_it;
 
-struct f_info{
-	string u;
-	int g;
-	string fname;
-	string hash;
-	string path;
-};
-
 f_info obj;
 
 vector<f_info> up_vec;
+vector<f_info>::iterator up_it;
+vector<f_info> temp_vec;
 
 int empty_group ;
 list<string> group_members[group_limit+1];
@@ -349,7 +343,7 @@ void *req_handler(void *arg)
 	{
 		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
 		recv(acc_fd, &choice, sizeof(int), 0);
-		cout<<"got choice "<<choice<<endl;
+		//cout<<"got choice "<<choice<<endl;
 		switch(choice)
 		{
 			case 1: load_credentials();
@@ -582,6 +576,48 @@ void *req_handler(void *arg)
 					}
 					send(acc_fd, &success, sizeof(bool), 0);
 					break;
+
+			case 11:recv(acc_fd, &g_id, sizeof(int), 0);
+					recv(acc_fd, buffer, BUFF_SIZE, 0);
+					jt.assign(buffer);
+					recv(acc_fd, buffer, BUFF_SIZE, 0);
+					pass.assign(buffer);
+					read_upload();
+					load_login();
+					empty_group = 0;
+					temp_vec.clear();
+					for(up_it = up_vec.begin(); up_it != up_vec.end(); up_it++)
+					{
+						if(up_it->g == g_id)
+							if(up_it->fname == jt && logged_in[up_it->u])
+							{
+								temp_vec.push_back(*up_it);
+								++empty_group;
+							}						
+					}
+					cout<<endl<<empty_group<<" users have the desired file\n";
+					if(empty_group > 0)
+					{
+						read_port();
+						success = true;
+						send(acc_fd, &success, sizeof(bool), 0);
+						send(acc_fd, &empty_group, sizeof(int), 0);
+						for(up_it = temp_vec.begin(); up_it != temp_vec.end(); up_it++)
+						{
+							send(acc_fd, port_num[up_it->u].first.c_str(), BUFF_SIZE, 0);
+							send(acc_fd, &port_num[up_it->u].second, sizeof(int), 0);
+							send(acc_fd, up_it->path.c_str(), BUFF_SIZE, 0);
+							send(acc_fd, up_it->hash.c_str(), BUFF_SIZE, 0);
+						}
+						cout<<"sent the whole temp vector\n";
+					}
+					else
+					{
+						success = false;
+						send(acc_fd, &success, sizeof(bool), 0);
+					}
+					break;
+						
 
 
 			case 12:load_login();

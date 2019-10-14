@@ -46,7 +46,7 @@ void *send_file(void *afd)
 		cout<<"connection accept failure\n";
 		exit(0);
 	}
-
+	cout<<"waiting to get filename\n";
 	recv(acc_fd, buffer, BUFF_SIZE, 0);
 	cout<<"client wants "<<buffer<<endl;
 	string filepath (buffer);
@@ -120,9 +120,10 @@ void *serve_files(void *P)
 	{
 		//cout<<"waiting for connection request at port number "<<PORT<<endl;
 		int acc_fd = accept(tracker_sock, (struct sockaddr *)&sadd, (socklen_t*)&sadd);
-		//cout<<"incoming connection accepted\n";
+		cout<<"incoming connection for download accepted "<<acc_fd<<" sent"<<endl;
 		int succ = pthread_create( &threads[count], NULL, send_file, &acc_fd);
-
+		if(succ != 0)
+			cout<<"couldn't create send file thread\n";
 		++count;
 
 		//pthread_exit(NULL);
@@ -132,14 +133,21 @@ void *serve_files(void *P)
 
 void *take_files(void *p)
 {
-	auto pack = *(pair<char *, char *> *)p;
-	cout<<"got filepath as "<<pack.first<<endl;
-	cout<<"got download path as "<<pack.second<<endl;
+	//cout<<"Inside take_files\n";
+	srand(time(0));
+	auto pack = *(vector<local_f> *)p;
+	int ri = rand()%pack.size();
+
+	local_f obj = pack[ri];
+
 	char *argv[3];
-	argv[1] = new char[100];
-	argv[2] = new char[100];
-	strcpy(argv[1], pack.first);
-	strcpy(argv[2], pack.second);
+	
+	argv[1] = new char[BUFF_SIZE];
+	argv[2] = new char[BUFF_SIZE];
+
+	strcpy(argv[1], obj.path);
+	strcpy(argv[2], obj.dpath);
+	
 	cout<<"got filepath as "<<argv[1]<<endl;
 	cout<<"got download path as "<<argv[2]<<endl;
 
@@ -152,8 +160,8 @@ void *take_files(void *p)
 	char buffer[BUFF_SIZE];
 	struct sockaddr_in track_addr;
 	track_addr.sin_family = AF_INET;
-	track_addr.sin_port = htons(6234);
-	inet_pton(AF_INET, "127.0.0.1", &track_addr.sin_addr);
+	track_addr.sin_port = htons(obj.port);
+	inet_pton(AF_INET, obj.ip, &track_addr.sin_addr);
 	int succ = connect(client_sock, (struct sockaddr *)&track_addr, sizeof(track_addr));
 	if(succ == -1)
 	{
@@ -162,6 +170,10 @@ void *take_files(void *p)
 	}
 
 	strcpy(buffer, argv[1]);
+	buffer[strlen(buffer)] = '/';
+	buffer[strlen(buffer)+1] = '\0';
+
+	strcat(buffer, obj.fname);
 	cout<<"sending path "<<buffer<<" to server"<<endl;                                      
 	send(client_sock, buffer, sizeof(buffer), 0);
 
@@ -169,7 +181,7 @@ void *take_files(void *p)
 	recv(client_sock, &fsize, sizeof(fsize), 0);
 	cout<<"received "<<fsize<<" as size of file\n";
 	string filename = findname(argv[1]);
-	string downpath = pack.second;
+	string downpath = argv[2];
 	string comppath = downpath+"/"+filename;
 	cout<<filename<<" will be saved to "<<comppath<<endl;
 	FILE *fp = fopen ( comppath.c_str(), "wb" );
@@ -182,7 +194,12 @@ void *take_files(void *p)
 		memset ( buffer , '\0', BUFF_SIZE);
 		fsize = fsize - n;
 	} 
-	cout<<"received\n";
+	cout<<"file downloaded. Verifying integrity by SHA1\n";
+	strcpy(argv[1], comppath.c_str());
+	if(strcmp(calc_sha(argv[1]).c_str(), obj.SHA_hash) == 0)
+		cout<<"Integrity verified\n";
+	else
+		cout<<"SHA of original and downloaded file differs\n";
 	close(client_sock);
 	delete argv[1];
 	delete argv[2];
@@ -305,14 +322,18 @@ int main(int argc, char *argv[])
 	bool login_status = false;
 	bool group = false;
 	string luser="", stemp;
-	string username = "", password;
+	string username = "", password, rpath;
 	vector<int> group_ids ;
 	int choice, g;
 	pair<string, string> p;
 	int fifteen = 15;
 	int four = 4, five=5;
-	int seven=7, six = 6, eight = 8, ten = 10;
+	int seven=7, six = 6, eight = 8, ten = 10, eleven=11;
 	bool s;
+	//cout<<"buffer being cleared\n";
+	cin.clear();
+	fflush(stdin);
+	//cout<<"after buffer cleared\n";
 	while(1)
 	{
 		cout<<"----------------------------------------\n\n";
@@ -500,6 +521,54 @@ int main(int argc, char *argv[])
 						cout<<"file successfully uploaded\n";
 					else
 						cout<<"could not upload the file\n";
+					break;
+
+			case 11:send(client_sock, &eleven, sizeof(int), 0);
+					cout<<"Enter group id :";
+					cin>>g;
+					cout<<"\nEnter filename :";
+					cin>>stemp;
+					cout<<"\nEnter destination path :";
+					cin>>rpath;
+					send(client_sock, &g, sizeof(int), 0);
+					send(client_sock, stemp.c_str(), BUFF_SIZE, 0);
+					send(client_sock, rpath.c_str(), BUFF_SIZE, 0);
+					recv(client_sock, &s, sizeof(bool), 0);
+					if(s)
+					{
+						cout<<"\nDownloading the file\n";
+						recv(client_sock, &g, sizeof(int), 0);
+						cout<<endl<<g<<" users have the file\n";
+						vector<local_f> tvec;
+						local_f rec;
+						while(g)
+						{
+							cout<<g<<"th iteration\n";
+							recv(client_sock, buffer, BUFF_SIZE, 0);
+							cout<<"recv 1\n";
+							strcpy(rec.ip, buffer);
+							recv(client_sock, &rq, sizeof(rq), 0);
+							cout<<"recv 2\n";
+							rec.port = rq;
+							recv(client_sock, buffer, BUFF_SIZE, 0);
+							cout<<"recv 3\n";
+							strcpy(rec.path, buffer);
+							recv(client_sock, buffer, BUFF_SIZE, 0);
+							cout<<"recv 4\n";
+							strcpy(rec.SHA_hash, buffer);
+							strcpy(rec.fname, stemp.c_str());
+							strcpy(rec.dpath, rpath.c_str());
+							tvec.push_back(rec);
+							--g;
+						}
+						cout<<"received the complete vector\n";
+						pthread_t d_thread;
+						pthread_create(&d_thread, NULL, take_files, &tvec);
+						pthread_join(d_thread, NULL);
+						cout<<"Download function called\n";
+					}
+					else
+						cout<<"File not found in your group\n";
 					break;
 
 			case 12:cout<<"calling logout\n";

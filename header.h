@@ -14,6 +14,7 @@
 #include<map>
 #include<vector>
 #include<list>
+#include<climits>
 #include <openssl/sha.h>
 
 #define BUFF_SIZE 100
@@ -21,6 +22,24 @@
 #define num_trackers 2
 #define group_limit 25
 using namespace std;
+
+struct local_f{
+    char ip[BUFF_SIZE];
+    int port;
+    char path[BUFF_SIZE];
+    char SHA_hash[BUFF_SIZE];
+
+    char fname[BUFF_SIZE];
+    char dpath[BUFF_SIZE];
+};
+
+struct f_info{
+    string u;
+    int g;
+    string fname;
+    string hash;
+    string path;
+};
 
 pair<string, string> break_path(string path)
 {
@@ -31,8 +50,9 @@ pair<string, string> break_path(string path)
     p = temp.substr(temp.find("/"));
     reverse(f.begin(), f.end());
     reverse(p.begin(), p.end());
+    p = p.substr(0, p.length()-1);
     return make_pair(p, f);
-    // do some stuff with the hash
+    
 }
 
 string calc_sha(char *path)
