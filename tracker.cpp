@@ -156,9 +156,9 @@ void load_login()
 	login_file.open("login_status.txt");
 	if(!login_file)
 	{
-		cout<<"creating login status file\n";
+		//cout<<"creating login status file\n";
 		temp.open("login_status.txt");
-		login_file.open("credentials.txt");
+		login_file.open("login_status.txt");
 		temp.close();
 	}
 		while(1)
@@ -342,14 +342,14 @@ void *req_handler(void *arg)
 	bool success;
 	string usr, pass, jt, hash;
 	int g, g_id;
-	int spare;
+	int spare, empty_group;;
 	pair<string, string> lpair;
 	string ruser, rpath;
 	while(1)
 	{
 		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
 		recv(acc_fd, &choice, sizeof(int), 0);
-		
+		cout<<"got choice "<<choice<<endl;
 		switch(choice)
 		{
 			case 1: load_credentials();
@@ -424,35 +424,28 @@ void *req_handler(void *arg)
 
 			case 3: cout<<"Group creation request\n";
 					load_login();
-					if(logged_in[usr])
-					{	
-						read_ownership();
-						int empty_group;
-						recv(acc_fd, &empty_group, sizeof(empty_group), 0);
-						if(g_owner[empty_group] == "")
-						{
-							ownership[usr].push_back(empty_group);
-							update_ownerships();
-							cout<<"sending "<<empty_group<<"\n";
-							send(acc_fd, &empty_group, sizeof(int), 0);
-							
-							ofstream own_ind;
-							own_ind.open("owners_indexed.txt", ios::app);
-							own_ind<<empty_group<<' '<<usr<<endl;
-							own_ind.close();
-							g_owner[empty_group] = usr;
+					recv(acc_fd, &empty_group, sizeof(int), 0);
+					read_ownership();				
+					if(g_owner[empty_group].length() == 0)
+					{
+						ownership[usr].push_back(empty_group);
+						update_ownerships();
+						bool b= true;
+						cout<<"sending "<<b<<"\n";
+						
+						send(acc_fd, &(b), sizeof(bool), 0);
+						ofstream own_ind;
+						own_ind.open("owners_indexed.txt", ios::app);
+						own_ind<<empty_group<<' '<<usr<<endl;
+						own_ind.close();
+						g_owner[empty_group] = usr;
 
-						}
-						else
-						{
-							bool b= false;
-							send(acc_fd, &(b), sizeof(bool), 0);		
-						}					
 					}
 					else
 					{
+						cout<<"failure "<<g_owner[empty_group]<<endl;
 						bool b= false;
-						send(acc_fd, &(b), sizeof(bool), 0);
+						send(acc_fd, &(b), sizeof(bool), 0);		
 					}
 					break;
 
@@ -497,7 +490,11 @@ void *req_handler(void *arg)
 					else
 					{
 						g_members[g_id].erase(vsi);
+						if(g_members[g_id].size() ==0)
+							g_members.erase(g_id);
 						membership[usr].erase(find(membership[usr].begin(), membership[usr].end(), g_id));
+						if(membership[usr].size() == 0)
+							membership.erase(usr);
 						update_membership();
 						success = true; 
 					}
@@ -514,7 +511,7 @@ void *req_handler(void *arg)
 
 			case 7: recv(acc_fd, &g, sizeof(int), 0);
 					char tt[100];
-					recv(acc_fd, &tt, 100, 0);
+					recv(acc_fd, tt, 100, 0);
 					load_join_requests();
 					jt.assign(tt);
 					vsi = find(requests[g].begin(), requests[g].end(), jt);
@@ -534,6 +531,8 @@ void *req_handler(void *arg)
 					{
 						load_join_requests();
 						requests[g].erase(vsi);
+						if(requests[g].size() == 0)
+							requests.erase(g);
 						update_join_requests();
 						read_memberships();
 						membership[jt].push_back(g);
@@ -546,7 +545,8 @@ void *req_handler(void *arg)
 					send(acc_fd, &success, sizeof(bool), 0);
 					break;
 
-			case 8: spare = g_owner.size();
+			case 8: read_ownership();
+					spare = g_owner.size();
 					send(acc_fd, &spare, sizeof(int), 0);
 					for(g_o_it = g_owner.begin(); g_o_it != g_owner.end(); g_o_it++)
 					{
@@ -592,7 +592,7 @@ void *req_handler(void *arg)
 						success = true;
 						
 						read_port();
-						port_num[usr] = make_pair("NA", -1);
+						port_num.erase(usr);
 						update_port();
 					}
 					else
@@ -609,7 +609,7 @@ void *req_handler(void *arg)
 					update_login();
 					
 					read_port();
-					port_num[usr] = make_pair("NA", -1);
+					port_num.erase(usr);
 					update_port();
 					pthread_exit(NULL);
 		}

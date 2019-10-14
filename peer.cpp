@@ -206,7 +206,9 @@ bool create_user(pair<string, string> p, int client_sock)
 	send(client_sock, p.first.c_str(), BUFF_SIZE, 0);
 	//cout<<"sending password "<<p.second<<endl;
 	send(client_sock, p.second.c_str(), BUFF_SIZE, 0);
+	cout<<"waiting to receive\n";
 	recv(client_sock, &b, sizeof(bool), 0);
+	cout<<"returning\n";
 	return b;
 }
 
@@ -227,7 +229,7 @@ bool log_out(int client_sock)
 {
 	int twelve=12;
 	send(client_sock, &twelve, sizeof(int), 0);
-	cout<<"sent 12\n";
+	//cout<<"sent 12\n";
 	bool b;
 	//cout<<"sending username "<<p.first<<endl;
 	//send(client_sock, p.first.c_str(), BUFF_SIZE, 0);
@@ -464,7 +466,7 @@ int main(int argc, char *argv[])
 					send(client_sock, temps, 100, 0);
 					recv(client_sock, &s, sizeof(bool), 0);
 					delete temps;
-					if(s == true)
+					if(s)
 						cout<<"\nGroup join request accepted\n";
 					else
 						cout<<"\nCould not process request/ User logged out/Join req doesn't exist\n";
