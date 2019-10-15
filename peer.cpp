@@ -44,9 +44,10 @@ void *send_file(void *afd)
 	if(acc_fd < 0)
 	{
 		cout<<"connection accept failure\n";
+		perror("accept");
 		exit(0);
 	}
-	cout<<"waiting to get filename\n";
+	//cout<<"waiting to get filename\n";
 	recv(acc_fd, buffer, BUFF_SIZE, 0);
 	cout<<"client wants "<<buffer<<endl;
 	string filepath (buffer);
@@ -115,11 +116,45 @@ void *serve_files(void *P)
 
 	pthread_t threads[THREAD_COUNT];
 	int count = 0;
-
+	socklen_t sstruct;
+	sstruct = sizeof(sadd);
 	while(1)
 	{
 		//cout<<"waiting for connection request at port number "<<PORT<<endl;
-		int acc_fd = accept(tracker_sock, (struct sockaddr *)&sadd, (socklen_t*)&sadd);
+		int acc_fd = accept(tracker_sock, (struct sockaddr *)&sadd, &sstruct);
+		perror("accept");
+		if(acc_fd < 0)
+		{
+			perror("accept");
+			if(errno == EAGAIN or errno == EWOULDBLOCK)
+				cout<<"EAGAIN\n";
+			else if(errno == EBADF)
+				cout<<"EBADF\n";
+			else if(errno == ECONNABORTED)
+				cout<<"ECONNABORTED\n";
+			else if(errno == EBADF)
+				cout<<"EBADF\n";
+			else if(errno == EFAULT)
+				cout<<"EFAULT\n";
+			else if(errno == EINTR)
+				cout<<"EINTR\n";
+			else if(errno == EINTR)
+				cout<<"EINTR\n";
+			else if(errno == EINVAL)
+				cout<<"EINVAL\n";
+			else if(errno == ENOBUFS  || errno == ENOMEM)
+				cout<<"ENOMEM\n";
+			else if(errno == ENOTSOCK)
+				cout<<"ENOTSOCK\n";
+			else if(errno == EOPNOTSUPP)
+				cout<<"EOPNOTSUPP\n";
+			else if(errno == EPERM)
+				cout<<"EPERM\n";
+			else if(errno == EPROTO)
+				cout<<"EPROTO\n";
+			else
+				cout<<"some other error\n";
+		}
 		cout<<"incoming connection for download accepted "<<acc_fd<<" sent"<<endl;
 		int succ = pthread_create( &threads[count], NULL, send_file, &acc_fd);
 		if(succ != 0)
@@ -196,7 +231,7 @@ void *take_files(void *p)
 	} 
 	cout<<"file downloaded. Verifying integrity by SHA1\n";
 	strcpy(argv[1], comppath.c_str());
-	if(strcmp(calc_sha(argv[1]).c_str(), obj.SHA_hash) == 0)
+	if(strcmp(calc_sha(argv[1]), obj.SHA_hash) == 0)
 		cout<<"Integrity verified\n";
 	else
 		cout<<"SHA of original and downloaded file differs\n";
@@ -273,6 +308,7 @@ bool create_group(int client_sock)
 
 int main(int argc, char *argv[])
 {
+	char *sha_val;
 	get_ip_port(argv[2]);
 	srand(time(0));
 	int tracker_id = rand()%num_trackers + 1;
@@ -512,10 +548,11 @@ int main(int argc, char *argv[])
 					cin>>g;
 					send(client_sock, buffer, BUFF_SIZE, 0);
 					send(client_sock, &g, sizeof(int), 0);
-					cout<<"opening file "<<buffer<<endl;
-					stemp = calc_sha(buffer);
-					strcpy(buffer, stemp.c_str());
-					send(client_sock, buffer, BUFF_SIZE, 0);
+					cout<<"calc SHA1 of "<<buffer<<endl;
+					sha_val = calc_sha(buffer);
+					cout<<"csending sha "<<sha_val<<endl;
+					//strcpy(buffer, stemp.c_str());
+					send(client_sock, sha_val, BUFF_SIZE, 0);
 					recv(client_sock, &s, sizeof(bool), 0);
 					if(s)
 						cout<<"file successfully uploaded\n";

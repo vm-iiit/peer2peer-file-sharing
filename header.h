@@ -16,6 +16,7 @@
 #include<list>
 #include<climits>
 #include <openssl/sha.h>
+#include <errno.h>
 
 #define BUFF_SIZE 100
 #define THREAD_COUNT 20
@@ -55,7 +56,7 @@ pair<string, string> break_path(string path)
     
 }
 
-string calc_sha(char *path)
+char *calc_sha(char *path)
 {
     //cout<<path<<endl;
     FILE *f = fopen(path, "rb");
@@ -82,8 +83,7 @@ string calc_sha(char *path)
         sprintf((char*)&(buf[i*2]), "%02x", hash[i]);
     }
 
-    string temp;
-    temp.assign(buf);
-    return temp;
+    delete strin;
+    return buf;
     // do some stuff with the hash
 }

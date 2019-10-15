@@ -331,7 +331,7 @@ void update_join_requests()
 void *req_handler(void *arg)
 {
 	int acc_fd = *(int *)arg;
-	int choice;
+	cout<<"descriptor number "<<acc_fd<<endl;
 	char buffer[BUFF_SIZE];
 	bool success;
 	string usr, pass, jt, hash;
@@ -339,11 +339,19 @@ void *req_handler(void *arg)
 	int spare, empty_group;;
 	pair<string, string> lpair;
 	string ruser, rpath;
+	cin.clear();
+	fflush(stdin);
 	while(1)
 	{
+		int choice;
 		cout<<"\n\nwaiting for "<<usr<<"'s request\n";
 		recv(acc_fd, &choice, sizeof(int), 0);
-		//cout<<"got choice "<<choice<<endl;
+		cout<<"got choice "<<choice<<endl;
+		if(choice <1 || choice >15)
+		{
+			cout<<"INVALID choice\n";
+			continue;
+		}
 		switch(choice)
 		{
 			case 1: load_credentials();
@@ -375,7 +383,7 @@ void *req_handler(void *arg)
 				    	ofstream login_file;
 				    	login_file.open("login_status.txt", ios::app);
 				    	login_file.seekp(ios_base::end);
-				    	login_file<<usr<<' '<<0<<"\n";
+				    	login_file<<usr<<' '<<0<<endl;
 				    	login_file.close();	
 
 				    }
@@ -425,7 +433,7 @@ void *req_handler(void *arg)
 						ownership[usr].push_back(empty_group);
 						update_ownerships();
 						bool b= true;
-						cout<<"sending "<<b<<"\n";
+						//cout<<"sending "<<b<<"\n";
 						
 						send(acc_fd, &(b), sizeof(bool), 0);
 						ofstream own_ind;
@@ -437,7 +445,7 @@ void *req_handler(void *arg)
 					}
 					else
 					{
-						cout<<"failure "<<g_owner[empty_group]<<endl;
+						//cout<<"failure "<<g_owner[empty_group]<<endl;
 						bool b= false;
 						send(acc_fd, &(b), sizeof(bool), 0);		
 					}
@@ -535,7 +543,7 @@ void *req_handler(void *arg)
 						success = true;
 						cout<<"join request accepted\n";
 					}
-					cout<<"sending "<<success<<" to client\n";
+					//cout<<"sending "<<success<<" to client\n";
 					send(acc_fd, &success, sizeof(bool), 0);
 					break;
 
@@ -555,8 +563,9 @@ void *req_handler(void *arg)
 					recv(acc_fd, &g, sizeof(int), 0);
 					recv(acc_fd, buffer, BUFF_SIZE, 0);
 					hash.assign(buffer);
-
+					cout<<"got sha "<<hash<<endl;
 					read_memberships();
+					read_ownership();
 					vsi = find(g_members[g].begin(), g_members[g].end(), usr);
 					if(vsi != g_members[g].end() || g_owner[g] == usr)
 					{
@@ -609,7 +618,7 @@ void *req_handler(void *arg)
 							send(acc_fd, up_it->path.c_str(), BUFF_SIZE, 0);
 							send(acc_fd, up_it->hash.c_str(), BUFF_SIZE, 0);
 						}
-						cout<<"sent the whole temp vector\n";
+						//cout<<"sent the whole temp vector\n";
 					}
 					else
 					{
@@ -633,9 +642,9 @@ void *req_handler(void *arg)
 					}
 					else
 						success = false;
-					cout<<"sending\n";
+					//cout<<"sending\n";
 					send(acc_fd, &success, sizeof(bool), 0);
-					cout<<"sent\n";
+					//cout<<"sent\n";
 					break;
 
 			case 15:close(acc_fd);
@@ -647,6 +656,7 @@ void *req_handler(void *arg)
 					read_port();
 					port_num.erase(usr);
 					update_port();
+					close(acc_fd);
 					pthread_exit(NULL);
 		}
 	}
@@ -677,7 +687,7 @@ void get_ip_port(char *filename)
 int main(int argc, char *argv[])
 {
 	int tracker_sock = socket(AF_INET, SOCK_STREAM, 0);
-	if(tracker_sock == -1)
+	if(tracker_sock <=0)
 	{
 		cout<<"cannot create socket\n";
 		exit(0);
@@ -688,6 +698,7 @@ int main(int argc, char *argv[])
 	
 	struct sockaddr_in sadd;
 	sadd.sin_family = AF_INET;
+	//cout<<"inserting port umber as :"<<tinfo[stoi(id)].second<<endl;
 	sadd.sin_port = htons(tinfo[stoi(id)].second);
 	sadd.sin_addr.s_addr = INADDR_ANY;
 
@@ -699,7 +710,7 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 	//cout<<"listening for new connections\n";
-	succ = listen(tracker_sock, 5);
+	succ = listen(tracker_sock, 20);
 	//cout<<"new connection arrived\n";
 	if(succ != 0)
 	{
@@ -709,12 +720,49 @@ int main(int argc, char *argv[])
 
 	pthread_t threads[THREAD_COUNT];
 	int count = 0;
-
+	socklen_t sstruct;
+	sstruct = sizeof(sadd);
 	cout<<"tracker #"<<argv[2]<<" initiated\n";
 	while(1)
 	{
 		cout<<"waiting for connection request\n";
-		int acc_fd = accept(tracker_sock, (struct sockaddr *)&sadd, (socklen_t*)&sadd);
+		int acc_fd = accept(tracker_sock, (struct sockaddr *)&sadd, &sstruct);
+		if(acc_fd < 0)
+		{
+			perror("accept");
+			if(errno == EAGAIN or errno == EWOULDBLOCK)
+				cout<<"EAGAIN\n";
+			else if(errno == EBADF)
+				cout<<"EBADF\n";
+			else if(errno == ECONNABORTED)
+				cout<<"ECONNABORTED\n";
+			else if(errno == EBADF)
+				cout<<"EBADF\n";
+			else if(errno == EFAULT)
+				cout<<"EFAULT\n";
+			else if(errno == EINTR)
+				cout<<"EINTR\n";
+			else if(errno == EINTR)
+				cout<<"EINTR\n";
+			else if(errno == EINVAL)
+				cout<<"EINVAL\n";
+			else if(errno == ENOBUFS  || errno == ENOMEM)
+				cout<<"ENOMEM\n";
+			else if(errno == ENOTSOCK)
+				cout<<"ENOTSOCK\n";
+			else if(errno == EOPNOTSUPP)
+				cout<<"EOPNOTSUPP\n";
+			else if(errno == EPERM)
+				cout<<"EPERM\n";
+			else if(errno == EPROTO)
+				cout<<"EPROTO\n";
+			else
+				cout<<"some other error\n";
+		}
+		else
+		{
+			cout<<"handler thread created for request\n";
+		}
 		cout<<"incoming connection accepted\n";
 		int succ = pthread_create( &threads[count], NULL, req_handler, &acc_fd);
 
